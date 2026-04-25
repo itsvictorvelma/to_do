@@ -4,12 +4,14 @@ from schemas import Todo
 app = FastAPI()
 
 items = []
+id_counter = 1
 
 @app.post("/items")
 async def create_item(item: Todo):
-    item.id = len(items) + 1
+    item.id = id_counter
     items.append(item)
-    return items
+    id_counter + 1
+    return item
 
 @app.get("/items/{item_id}", response_model=Todo)
 async def get_item(item_id: int) -> Todo:
