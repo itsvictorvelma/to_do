@@ -12,16 +12,33 @@ async def create_item(item: Todo):
     return items
 
 @app.get("/items/{item_id}", response_model=Todo)
-def get_item(item_id: int) -> Todo:
+async def get_item(item_id: int) -> Todo:
+    for item in items:
+        if item.id == item_id:
+            return item
 
-    if item_id < len(items):
-        for item in items:
-            if item.id == item_id:
-                return item
-    else:
-        raise HTTPException(status_code=404, detail="Item not found...")
+    raise HTTPException(status_code=404, detail="Item not found...")
 
 @app.get("/items")
-def get_all_items():
+async def get_all_items():
     return items
 
+@app.patch("/items/{item_id}", response_model=Todo)
+async def completed(item_id: int) -> Todo:
+    for item in items:
+        if item.id == item_id:
+            item.is_done = True
+            return item
+
+    raise HTTPException(status_code=404, detail="Item not found...")
+
+@app.delete("/items/{item_id}")
+async def delete_item(item_id: int):
+    for item in items:
+        if item.id == item_id:
+            items.remove(item)
+            return {"detail": f"Todo #{item_id} has been succesfully deleted"}
+
+    raise HTTPException(status_code=404, detail="Item not found...")
+
+    
