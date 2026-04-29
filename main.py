@@ -1,6 +1,8 @@
+from database import engine, Todo, User
+from schemas import UserCreate, UserPublic
+from security import hash_password
 from fastapi import FastAPI, HTTPException, Depends
 from sqlmodel import Session, select
-from database import engine, Todo
 
 app = FastAPI()
 
