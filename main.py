@@ -1,6 +1,8 @@
+from database import engine, Todo, User
+from schemas import UserCreate, UserPublic
+from security import hash_password
 from fastapi import FastAPI, HTTPException, Depends
 from sqlmodel import Session, select
-from database import engine, TodoDatabase
 
 app = FastAPI()
 
@@ -9,7 +11,7 @@ def get_session():
         yield session
 
 @app.post("/items")
-async def create_item(item: TodoDatabase, session: Session = Depends(get_session)):
+async def create_item(item: Todo, session: Session = Depends(get_session)):
     session.add(item)
     session.commit()
     session.refresh(item)
@@ -17,7 +19,7 @@ async def create_item(item: TodoDatabase, session: Session = Depends(get_session
 
 @app.get("/items/{item_id}")
 async def get_item(item_id: int, session: Session = Depends(get_session)):
-    todo = session.get(TodoDatabase, item_id)
+    todo = session.get(Todo, item_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Item not found...")
 
@@ -25,12 +27,12 @@ async def get_item(item_id: int, session: Session = Depends(get_session)):
 
 @app.get("/items")
 async def get_all_items(session: Session = Depends(get_session)):
-    todos = session.exec(select(TodoDatabase)).all()
+    todos = session.exec(select(Todo)).all()
     return todos
 
 @app.patch("/items/{item_id}")
 async def toggle_completed(item_id: int, session: Session = Depends(get_session)):
-    todo = session.get(TodoDatabase, item_id)
+    todo = session.get(Todo, item_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Item not found...")
 
@@ -44,7 +46,7 @@ async def toggle_completed(item_id: int, session: Session = Depends(get_session)
 
 @app.delete("/items/{item_id}")
 async def delete_item(item_id: int, session: Session = Depends(get_session)):
-    todo = session.get(TodoDatabase, item_id)
+    todo = session.get(Todo, item_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Item not found")
 
