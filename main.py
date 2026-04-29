@@ -3,6 +3,8 @@ from schemas import UserCreate, UserPublic, TodoCreate, TodoPublic
 from security import hash_password, verify_password, create_access_token
 from fastapi import FastAPI, HTTPException, Depends
 from sqlmodel import Session, select
+from security import oauth2_scheme, verify_access_token
+from fastapi.security import OAuth2PasswordRequestForm
 
 app = FastAPI()
 
@@ -10,10 +12,29 @@ def get_session():
     with Session(engine) as session: 
         yield session
 
+def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
+    user_id = verify_access_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Could not validate credentials.")
+
+    user = session.get(User, int(user_id))
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found.")
+
+    return user
+
 @app.post("/items", response_model=TodoPublic)
-async def create_item(item_in: TodoCreate, session: Session = Depends(get_session)):
-    #TEMP UNTIL WE BUILD LOGIN/TOKEN SYSTEM
-    new_item = Todo(**item_in.model_dump(), user_id=1)
+async def create_item(
+    item_in: TodoCreate, 
+    session: Session = Depends(get_session), 
+    current_user: User = Depends(get_current_user)
+    ):
+
+    if not current_user.id:
+        raise HTTPException(status_code=500, detail="User ID is missing.") 
+
+    new_item = Todo(**item_in.model_dump(), user_id=current_user.id)
+
     session.add(new_item)
     session.commit()
     session.refresh(new_item)
@@ -28,8 +49,9 @@ async def get_item(item_id: int, session: Session = Depends(get_session)):
     return todo
 
 @app.get("/items")
-async def get_all_items(session: Session = Depends(get_session)):
-    todos = session.exec(select(Todo)).all()
+async def get_my_items(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    statement = select(Todo).where(Todo.user_id == current_user.id)
+    todos = session.exec(statement).all()
     return todos
 
 @app.patch("/items/{item_id}")
@@ -85,13 +107,13 @@ def register_user(user_in: UserCreate, session: Session = Depends(get_session)):
     return new_user
 
 @app.post("/login")
-def login(user_in: UserCreate, session: Session = Depends(get_session)):
+def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
     
     # get user
-    user = session.exec(select(User).where(User.username == user_in.username)).first()
+    user = session.exec(select(User).where(User.username == form_data.username)).first()
 
     # verify
-    if not user or not verify_password(user_in.password, user.hashed_password):
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # create token
@@ -99,3 +121,5 @@ def login(user_in: UserCreate, session: Session = Depends(get_session)):
 
     # return user "wristband"
     return {"access_token": access_token, "token_type": "bearer"}
+
+    
