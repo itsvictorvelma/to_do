@@ -1,12 +1,13 @@
-from sqlmodel import Field, SQLModel, create_engine 
+from sqlmodel import Field, SQLModel, create_engine
 from typing import Optional
+
 
 class Todo(SQLModel, table=True):
     title: str
-    user_id: int = Field(foreign_key="user.id")   
+    user_id: int = Field(foreign_key="user.id")
     id: int | None = Field(default=None, primary_key=True)
     is_done: bool = False
-    
+
 
 class User(SQLModel, table=True):
     username: str = Field(unique=True, index=True)

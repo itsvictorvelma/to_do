@@ -8,9 +8,9 @@
 import os
 from dotenv import load_dotenv
 from typing import Optional
-import base64 # converts binary into plain string 
+import base64  # converts binary into plain string
 import hashlib
-import secrets # generates our salt randomly
+import secrets  # generates our salt randomly
 import jwt
 from datetime import datetime, timedelta, timezone
 from fastapi.security import OAuth2PasswordBearer
@@ -21,52 +21,78 @@ ALGORITHM = os.getenv("ALGORITHM", "pbkdf2_sha256")
 ITERATIONS = int(os.getenv("ITERATIONS", 260000))
 SECRET_KEY = os.getenv("SECRET_KEY")
 
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
-    
+
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
 
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=30)
 
-    to_encode.update({"exp": expire}) # make token expire. if a token is stolen its only valid for limited time
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256") # hashing algo used specifically with JWT signature
+    to_encode.update(
+        {"exp": expire}
+    )  # make token expire. if a token is stolen its only valid for limited time
+    encoded_jwt = jwt.encode(
+        to_encode, SECRET_KEY, algorithm="HS256"
+    )  # hashing algo used specifically with JWT signature
     return encoded_jwt
 
-def hash_password(password: str, salt: Optional[str] = None, iterations: int = ITERATIONS):
+
+def hash_password(
+    password: str, salt: Optional[str] = None, iterations: int = ITERATIONS
+):
     if salt is None:
         salt = secrets.token_hex(16)
 
-    pw_hash = hashlib.pbkdf2_hmac( # this mixes your super secret password and salt 260000 times.
+    pw_hash = hashlib.pbkdf2_hmac(  # this mixes your super secret password and salt 260000 times.
         "sha256",
-        password.encode("utf-8"), # turns strings into bytes
+        password.encode("utf-8"),  # turns strings into bytes
         salt.encode("utf-8"),
-        iterations
+        iterations,
     )
 
-    b64_hash = base64.b64encode(pw_hash).decode("ascii").strip() # Turn messy binary pw_hash into noice base64 string
+    b64_hash = (
+        base64.b64encode(pw_hash).decode("ascii").strip()
+    )  # Turn messy binary pw_hash into noice base64 string
     return f"{ALGORITHM}${iterations}${salt}${b64_hash}"
+
 
 # Now we gots to make a way to check if a users login password is correct.
 
+
 def verify_password(plain_password: str, stored_hash: str):
-    if (stored_hash or "").count("$") != 3: # we check if the stored hash has 3 dollar signs. if not its a corrupted record.
+    if (
+        (stored_hash or "").count("$") != 3
+    ):  # we check if the stored hash has 3 dollar signs. if not its a corrupted record.
         return False
-    
-    algorithm, iterations, salt, b64_hash = stored_hash.split("$", 3) # we unpack the stored string into its original parts.
+
+    algorithm, iterations, salt, b64_hash = stored_hash.split(
+        "$", 3
+    )  # we unpack the stored string into its original parts.
     iterations = int(iterations)
 
-    compare_hash = hash_password(plain_password, salt, iterations) # we take the plain pass the user gave use and ran it through hash_password, using the same salt and iterations
-    return secrets.compare_digest(stored_hash, compare_hash) # if the newly generated string matches the one in our database then bobs your uncle. 
+    compare_hash = hash_password(
+        plain_password, salt, iterations
+    )  # we take the plain pass the user gave use and ran it through hash_password, using the same salt and iterations
+    return secrets.compare_digest(
+        stored_hash, compare_hash
+    )  # if the newly generated string matches the one in our database then bobs your uncle.
+
 
 # JWT TOKEN AUTH
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login") # Looks for bearer token header in every request
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/login"
+)  # Looks for bearer token header in every request
+
 
 def verify_access_token(token: str):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"]) # uses your secret key to check if the token has been messed with. if someone changed user_id in the token, signature wont match and will throw an error
+        payload = jwt.decode(
+            token, SECRET_KEY, algorithms=["HS256"]
+        )  # uses your secret key to check if the token has been messed with. if someone changed user_id in the token, signature wont match and will throw an error
         user_id: Optional[str] = payload.get("sub")
 
         if user_id is None:
@@ -74,13 +100,13 @@ def verify_access_token(token: str):
 
         return user_id
 
-    except jwt.PyJWTError: 
+    except jwt.PyJWTError:
         return None
+
 
 # me tests
 
-if __name__ == "__main__": 
-
+if __name__ == "__main__":
     super_secret_password = "shhh-123"
 
     hashed = hash_password(super_secret_password)
