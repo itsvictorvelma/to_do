@@ -6,14 +6,19 @@
 # this method allows me to increase my iterations from 260000 to 500000 if i wanted to and would still work with old users because the iteration - 
 # count is stored. 
 
+import os
+from dotenv import load_dotenv
 from typing import Optional
 import base64 # converts binary into plain string 
 import hashlib
 import secrets # generates our salt randomly
 
-ALGORITHM = "pbkdf2_sha256"
+load_dotenv()
 
-def hash_password(password: str, salt: Optional[str] = None, iterations: int = 260000):
+ALGORITHM = os.getenv("ALGORITHM", "pbkdf2_sha256")
+ITERATIONS = int(os.getenv("ITERATIONS", 260000))
+
+def hash_password(password: str, salt: Optional[str] = None, iterations: int = ITERATIONS):
     if salt is None:
         salt = secrets.token_hex(16)
 
