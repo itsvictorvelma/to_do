@@ -1,6 +1,6 @@
 from database import engine, Todo, User
 from schemas import UserCreate, UserPublic, TodoCreate, TodoPublic
-from security import hash_password
+from security import hash_password, verify_password, create_access_token
 from fastapi import FastAPI, HTTPException, Depends
 from sqlmodel import Session, select
 
@@ -83,3 +83,19 @@ def register_user(user_in: UserCreate, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(new_user)
     return new_user
+
+@app.post("/login")
+def login(user_in: UserCreate, session: Session = Depends(get_session)):
+    
+    # get user
+    user = session.exec(select(User).where(User.username == user_in.username)).first()
+
+    # verify
+    if not user or not verify_password(user_in.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    # create token
+    access_token = create_access_token(data={"sub": str(user.id)})
+
+    # return user "wristband"
+    return {"access_token": access_token, "token_type": "bearer"}

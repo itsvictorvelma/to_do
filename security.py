@@ -12,11 +12,27 @@ from typing import Optional
 import base64 # converts binary into plain string 
 import hashlib
 import secrets # generates our salt randomly
+import jwt
+from datetime import datetime, timedelta, timezone
 
 load_dotenv()
 
 ALGORITHM = os.getenv("ALGORITHM", "pbkdf2_sha256")
 ITERATIONS = int(os.getenv("ITERATIONS", 260000))
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+    to_encode.update({"exp": expire}) # make token expire. if a token is stolen its only valid for limited time
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256") # hashing algo used specifically with JWT signature
+    return encoded_jwt
 
 def hash_password(password: str, salt: Optional[str] = None, iterations: int = ITERATIONS):
     if salt is None:
