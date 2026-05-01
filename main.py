@@ -1,5 +1,5 @@
 from database import engine, Todo, User
-from schemas import UserCreate, UserPublic, TodoCreate, TodoPublic
+from schemas import UserCreate, UserPublic, TodoCreate, TodoPublic, TodoUpdate
 from security import hash_password, verify_password, create_access_token
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,9 +63,15 @@ def create_item(
 
 
 @app.get("/items/{item_id}")
-def get_item(item_id: int, session: Session = Depends(get_session)):
+def get_item(
+    item_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+
     todo = session.get(Todo, item_id)
-    if not todo:
+
+    if not todo or todo.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Item not found...")
 
     return todo
@@ -81,24 +87,27 @@ def get_my_items(
     return todos
 
 
-@app.patch("/items/{item_id}")
-def toggle_completed(
+@app.patch("/items/{item_id}", response_model=TodoPublic)
+def edit_item(
     item_id: int,
+    item_in: TodoUpdate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-
-    todo = session.get(Todo, item_id)
-
-    # The line below prevents ID enumeration attacks.
+    todo = session.get(Todo, item_id)  # noqa: F841
 
     if not todo or todo.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Item not found...")
+        raise HTTPException(status_code=404, detail="Item not found")
 
-    # if a user is logged in they shouldn't be able to toggle "item_id=99" if that item belongs to a different user.
-    # By checking user_id I've ensured that users interact only with their data.
+    update_data = item_in.model_dump(exclude_unset=True)
+    print(f"DEBUG: Data to update: {update_data}")
 
-    todo.is_done = not todo.is_done
+    for key, value in update_data.items():
+        setattr(todo, key, value)
+        # todo - Object (what you want to change),
+        # key - Name (the attribute you wanna change),
+        # value - Value (the data you want to assign to that attribute)
+
     session.add(todo)
     session.commit()
     session.refresh(todo)
