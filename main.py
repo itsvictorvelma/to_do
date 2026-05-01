@@ -2,11 +2,25 @@ from database import engine, Todo, User
 from schemas import UserCreate, UserPublic, TodoCreate, TodoPublic
 from security import hash_password, verify_password, create_access_token
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from security import oauth2_scheme, verify_access_token
 from fastapi.security import OAuth2PasswordRequestForm
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:8000",
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def get_session():
