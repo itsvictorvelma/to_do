@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from sqlmodel import SQLModel
 
 # user schema
 
@@ -34,6 +35,11 @@ class TodoCreate(TodoBase):
 class TodoPublic(TodoBase):
     id: int
     user_id: int
+
+
+class TodoUpdate(BaseModel):
+    title: str | None = None
+    is_done: bool | None = False
 
 
 # me tests
