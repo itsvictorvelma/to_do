@@ -15,7 +15,9 @@ def get_session():
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)
+    # To get current_user we run oauth2_scheme to get the token from the header and get_session to get the db connection
+    token: str = Depends(oauth2_scheme),
+    session: Session = Depends(get_session),
 ):
     user_id = verify_access_token(token)
     if not user_id:
@@ -29,7 +31,7 @@ def get_current_user(
 
 
 @app.post("/items", response_model=TodoPublic)
-async def create_item(
+def create_item(
     item_in: TodoCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -47,7 +49,7 @@ async def create_item(
 
 
 @app.get("/items/{item_id}")
-async def get_item(item_id: int, session: Session = Depends(get_session)):
+def get_item(item_id: int, session: Session = Depends(get_session)):
     todo = session.get(Todo, item_id)
     if not todo:
         raise HTTPException(status_code=404, detail="Item not found...")
@@ -56,7 +58,7 @@ async def get_item(item_id: int, session: Session = Depends(get_session)):
 
 
 @app.get("/items")
-async def get_my_items(
+def get_my_items(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -66,7 +68,7 @@ async def get_my_items(
 
 
 @app.patch("/items/{item_id}")
-async def toggle_completed(
+def toggle_completed(
     item_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -74,8 +76,13 @@ async def toggle_completed(
 
     todo = session.get(Todo, item_id)
 
+    # The line below prevents ID enumeration attacks.
+
     if not todo or todo.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Item not found...")
+
+    # if a user is logged in they shouldn't be able to toggle "item_id=99" if that item belongs to a different user.
+    # By checking user_id I've ensured that users interact only with their data.
 
     todo.is_done = not todo.is_done
     session.add(todo)
@@ -85,7 +92,7 @@ async def toggle_completed(
 
 
 @app.delete("/items/{item_id}")
-async def delete_item(
+def delete_item(
     item_id: int,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -105,8 +112,10 @@ def register_user(user_in: UserCreate, session: Session = Depends(get_session)):
 
     # check if user already exists
 
+    # Building the request.
     query = select(User).where(User.username == user_in.username)
     existing_user = session.exec(query).first()
+    # passing the request to the session, the session executes the request.
 
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already taken.")
@@ -130,7 +139,6 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(get_session),
 ):
-
     # get user
     user = session.exec(select(User).where(User.username == form_data.username)).first()
 

@@ -1,21 +1,20 @@
 from pydantic import BaseModel
 
-
 # user schema
+
+
 # this defines what is common to all user related data.
 class UserBase(BaseModel):
     username: str
 
 
-class UserCreate(
-    UserBase
-):  # this is where the users plain password lives for a split second
+# this is where the users plain password lives for a split second
+class UserCreate(UserBase):
     password: str
 
 
-class UserPublic(
-    UserBase
-):  # this is what you send back to the user when they ask who ami
+# this is what you send back to the user when they ask who ami
+class UserPublic(UserBase):
     # we do not include a password field because we want to ensure even the hashed password string never leaves our server.
     id: int
 
